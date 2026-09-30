@@ -1,4 +1,4 @@
-# LeadLens: BFSI & Healthcare Entity Enrichment Pipeline
+# nbfc-entity-enrichment-pipeline
 
 Python pipeline that takes a list of regulated and healthcare entities (NBFCs, insurers, hospital chains, pharma companies) from an Excel file and fills in, for each one:
 
