@@ -1,0 +1,40 @@
+2026-09-29T17:22:24+0530 | WARNING | attempt=1 search_engine=google_api query='Bajaj Finance Limited official website' reason=unreachable or not configured
+2026-09-29T17:22:26+0530 | WARNING | attempt=2 search_engine=google_api query='Bajaj Finance Limited official website' reason=unreachable or not configured
+2026-09-29T17:22:29+0530 | WARNING | attempt=3 search_engine=google_api query='Bajaj Finance Limited official website' reason=unreachable or not configured
+2026-09-29T17:22:29+0530 | WARNING | search_engine_skip engine=google_api reason=failed after retries; skipping for rest of run
+2026-09-29T17:22:30+0530 | INFO | search_engine_ok engine=bing query='Bajaj Finance Limited official website' results=7
+2026-09-29T17:22:32+0530 | INFO | search_engine_ok engine=bing query='Bajaj Finance Limited linkedin company' results=7
+2026-09-29T17:22:35+0530 | INFO | seed_fallback entity='Bajaj Finance Limited' field=linkedin
+2026-09-29T17:22:38+0530 | INFO | seed_fallback entity='Bajaj Finance Limited' field=employees
+2026-09-29T17:22:39+0530 | INFO | search_engine_ok engine=bing query='HDFC ERGO General Insurance Company Limited official website' results=7
+2026-09-29T17:22:41+0530 | INFO | search_engine_ok engine=bing query='HDFC ERGO General Insurance Company Limited linkedin company' results=7
+2026-09-29T17:22:43+0530 | INFO | seed_fallback entity='HDFC ERGO General Insurance Company Limited' field=linkedin
+2026-09-29T17:22:50+0530 | INFO | seed_fallback entity='HDFC ERGO General Insurance Company Limited' field=employees
+2026-09-29T17:22:50+0530 | INFO | search_engine_ok engine=bing query='Apollo Hospitals Enterprise Limited official website' results=10
+2026-09-29T17:22:52+0530 | INFO | search_engine_ok engine=bing query='Apollo Hospitals Enterprise Limited linkedin company' results=10
+2026-09-29T17:22:55+0530 | INFO | seed_fallback entity='Apollo Hospitals Enterprise Limited' field=linkedin
+2026-09-29T17:23:03+0530 | INFO | seed_fallback entity='Apollo Hospitals Enterprise Limited' field=employees
+2026-09-29T17:23:03+0530 | INFO | search_engine_ok engine=bing query="Dr. Reddy's Laboratories Limited official website" results=7
+2026-09-29T17:23:06+0530 | INFO | search_engine_ok engine=bing query="Dr. Reddy's Laboratories Limited linkedin company" results=10
+2026-09-29T17:23:08+0530 | INFO | seed_fallback entity="Dr. Reddy's Laboratories Limited" field=linkedin
+2026-09-29T17:23:12+0530 | INFO | seed_fallback entity="Dr. Reddy's Laboratories Limited" field=employees
+2026-09-29T17:23:13+0530 | INFO | search_engine_ok engine=bing query='Manappuram Finance Limited official website' results=10
+2026-09-29T17:23:15+0530 | INFO | search_engine_ok engine=bing query='Manappuram Finance Limited linkedin company' results=7
+2026-09-29T17:23:17+0530 | INFO | seed_fallback entity='Manappuram Finance Limited' field=linkedin
+2026-09-29T17:23:18+0530 | INFO | seed_fallback entity='Manappuram Finance Limited' field=address
+2026-09-29T17:23:18+0530 | INFO | seed_fallback entity='Manappuram Finance Limited' field=employees
+2026-09-29T17:23:19+0530 | INFO | search_engine_ok engine=bing query='ICICI Lombard General Insurance Company Limited official website' results=10
+2026-09-29T17:23:22+0530 | INFO | search_engine_ok engine=bing query='ICICI Lombard General Insurance Company Limited linkedin company' results=10
+2026-09-29T17:23:25+0530 | INFO | seed_fallback entity='ICICI Lombard General Insurance Company Limited' field=linkedin
+2026-09-29T17:23:30+0530 | INFO | seed_fallback entity='ICICI Lombard General Insurance Company Limited' field=employees
+2026-09-29T17:23:30+0530 | INFO | search_engine_ok engine=bing query='Max Healthcare Institute Limited official website' results=10
+2026-09-29T17:23:33+0530 | INFO | search_engine_ok engine=bing query='Max Healthcare Institute Limited official site corporate' results=7
+2026-09-29T17:23:35+0530 | INFO | search_engine_ok engine=bing query='Max Healthcare Institute Limited linkedin company' results=10
+2026-09-29T17:23:37+0530 | INFO | seed_fallback entity='Max Healthcare Institute Limited' field=linkedin
+2026-09-29T17:23:41+0530 | INFO | seed_fallback entity='Max Healthcare Institute Limited' field=address
+2026-09-29T17:23:41+0530 | INFO | seed_fallback entity='Max Healthcare Institute Limited' field=employees
+2026-09-29T17:23:42+0530 | INFO | search_engine_ok engine=bing query='Cipla Limited official website' results=10
+2026-09-29T17:23:45+0530 | INFO | search_engine_ok engine=bing query='Cipla Limited linkedin company' results=10
+2026-09-29T17:23:47+0530 | INFO | seed_fallback entity='Cipla Limited' field=linkedin
+2026-09-29T17:23:49+0530 | INFO | seed_fallback entity='Cipla Limited' field=address
+2026-09-29T17:23:50+0530 | INFO | seed_fallback entity='Cipla Limited' field=employees

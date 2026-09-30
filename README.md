@@ -1,6 +1,6 @@
-# LeadLens: Automated Company Data Enrichment
+# LeadLens: BFSI & Healthcare Entity Enrichment Pipeline
 
-Python tool that takes a list of company names from an Excel file and fills in, for each one:
+Python pipeline that takes a list of regulated and healthcare entities (NBFCs, insurers, hospital chains, pharma companies) from an Excel file and fills in, for each one:
 
 - Company website
 - Company LinkedIn page
@@ -8,30 +8,41 @@ Python tool that takes a list of company names from an Excel file and fills in, 
 - Employee size
 - Contacts available on the website (emails / phone numbers)
 
-Output is written back to a new Excel file with a **Source** column showing where each row's data came from.
+Output is written to **output.xlsx** (for review) and to a **SQLite or PostgreSQL** table (for dashboards and downstream jobs). Each row includes a **Source** column (live / seed / live+seed) and a **validation_status** flag for data-quality checks.
 
 ## Why this exists
 
-Sales and research teams spend hours searching each account by hand. This script does the lookup for a whole list in minutes and flags anything that still needs a human check.
+Compliance, underwriting, and provider-network teams need consistent firmographics across NBFCs, insurers, hospitals, and pharma chains. Manual lookup does not scale. This pipeline automates website resolution and on-site extraction for a batch of entity names from public regulator-style lists (RBI NBFC register, IRDAI insurer lists, etc.), while logging search failures and seed fallbacks instead of failing silently.
 
 ## How it works
 
-1. **Reads** the `Account Name` column from the input `.xlsx` (openpyxl).
-2. **Finds the website and LinkedIn URL** using a chain of search engines: Google Custom Search API (optional) -> Bing -> DuckDuckGo -> `googlesearch`. Engines that fail to connect are skipped for the rest of the run. Redirect links are decoded to real URLs, and aggregator sites (Wikipedia, ZoomInfo, etc.) are filtered out.
-3. **Scrapes the company's own site** (requests + BeautifulSoup). It discovers Contact / About / Company links from the homepage, then extracts:
+1. **Reads** the `Entity Name` column (and optional `Entity Type`: NBFC / Insurer / Hospital / Pharma) from the input `.xlsx` (`data_reader.py`).
+2. **Finds the website and LinkedIn URL** using a chain of search engines (`search_resolver.py`): Google Custom Search API (optional) → Bing → DuckDuckGo → `googlesearch`. Each engine is retried with exponential backoff before it is skipped for the rest of the run. Events are logged to `leadlens_enrichment.log` (`logger.py`).
+3. **Scrapes the company's own site** (`scraper.py`, requests + BeautifulSoup). It discovers Contact / About / Company links from the homepage, then extracts:
    - Address from JSON-LD, `<address>` tags, Japanese `〒` postal blocks, or English labels
    - Employee count when the site states it
    - Emails and phone numbers from `mailto:` / `tel:` links
-4. **Falls back to a verified seed table** for any cell live lookup could not fill, so the output is never blank.
-5. **Saves** the result, even if the run is interrupted.
+4. **Falls back to a verified seed table** (`seed_fallback.py`) for any cell live lookup could not fill.
+5. **Validates** each row (`data_validator.py`) — e.g. missing website, thin address, employee count that looks like a parent/group figure.
+6. **Saves** Excel and appends rows to the database (`db_writer.py`), even if the run is interrupted (Excel save in `finally`).
 
 ## Project structure
 
 ```
-Populate_company_data/
-|-- populate_company_data_final.py   # main script
-|-- Walkins_Test_05082026.xlsx       # input (Account Name list)
+Leadlens/
+|-- main.py                          # orchestrates the pipeline
+|-- data_reader.py                   # input Excel read + output column layout
+|-- search_resolver.py               # multi-engine search + retries
+|-- scraper.py                       # homepage / contact page scraping
+|-- seed_fallback.py                 # seed table + fallback helpers
+|-- data_validator.py                # validation_status flags
+|-- db_writer.py                     # SQLite / PostgreSQL persist
+|-- logger.py                        # timestamped enrichment log file
+|-- populate_company_data_final.py   # legacy CLI (calls main.py)
+|-- sample_bfsi_healthcare_entities.xlsx
 |-- output.xlsx                      # generated result
+|-- leadlens.db                      # default SQLite output (generated)
+|-- leadlens_enrichment.log          # generated log
 `-- README.md
 ```
 
@@ -43,29 +54,51 @@ Requires Python 3.9+.
 python -m pip install requests beautifulsoup4 openpyxl
 ```
 
+Optional:
+
+```bash
+python -m pip install psycopg2-binary   # PostgreSQL via LEADLENS_DATABASE_URL
+python -m pip install googlesearch-python  # last-resort search engine
+```
+
 ## Usage
 
 ```bash
-python populate_company_data_final.py Walkins_Test_05082026.xlsx output.xlsx
+python main.py sample_bfsi_healthcare_entities.xlsx output.xlsx
 ```
 
 Options:
 
-| Option                                    | Effect                                                                       |
-| ----------------------------------------- | ---------------------------------------------------------------------------- |
-| `--no-seed`                               | Disable the seed fallback and show pure live results                         |
-| `GOOGLE_API_KEY` + `GOOGLE_CX` (env vars) | Use the official Google Custom Search API first (free tier: 100 queries/day) |
+| Option / env | Effect |
+| --- | --- |
+| `--no-seed` | Disable the seed fallback and show pure live results |
+| `--log=path` | Custom log file path (default: `leadlens_enrichment.log`) |
+| `GOOGLE_API_KEY` + `GOOGLE_CX` | Use Google Custom Search API first (free tier: 100 queries/day) |
+| `LEADLENS_DATABASE_URL` | PostgreSQL connection string (or `sqlite:///./leadlens.db`) |
+| `LEADLENS_SQLITE_PATH` | SQLite file path when no URL is set (default: `leadlens.db`) |
+
+### Sample input format
+
+| Entity Name | Entity Type |
+| --- | --- |
+| Bajaj Finance Limited | NBFC |
+| HDFC ERGO General Insurance Company Limited | Insurer |
+| Apollo Hospitals Enterprise Limited | Hospital |
+| Dr. Reddy's Laboratories Limited | Pharma |
 
 ## Output columns
 
-| Column                        | Meaning                                   |
-| ----------------------------- | ----------------------------------------- |
-| Company Website               | Official site (homepage)                  |
-| Company Linkedin              | LinkedIn company page                     |
-| Company Address               | Head office / contact address             |
-| Employee Size                 | From company site, LinkedIn, or seed data |
-| Contacts Available on Website | Emails and phones published on the site   |
-| Source                        | `live`, `seed`, or `live+seed`            |
+| Column | Meaning |
+| --- | --- |
+| Entity Name | Input entity |
+| Entity Type | NBFC / Insurer / Hospital / Pharma (if provided) |
+| Company Website | Official site (homepage) |
+| Company Linkedin | LinkedIn company page |
+| Company Address | Head office / contact address |
+| Employee Size | From company site, LinkedIn, or seed data |
+| Contacts Available on Website | Emails and phones published on the site |
+| Source | `live`, `seed`, or `live+seed` |
+| validation_status | `ok` or comma-separated flags (e.g. `missing_website`, `incomplete_address`, `possible_parent_employee_count`) |
 
 ## Known limitations
 
@@ -77,4 +110,4 @@ Options:
 
 ## Tech stack
 
-Python, requests, BeautifulSoup4, openpyxl, regex, JSON-LD parsing.
+Python, requests, BeautifulSoup4, openpyxl, SQLite, PostgreSQL (optional), structured file logging, regex, JSON-LD parsing.
