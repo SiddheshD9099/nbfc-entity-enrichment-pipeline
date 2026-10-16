@@ -73,12 +73,26 @@ def apply_seed_to_urls(entity_name: str, seed: dict, website, linkedin, sources:
     return website, linkedin
 
 
+
 def apply_seed_to_address(entity_name: str, seed: dict, address, sources: set):
-    if not address and seed.get("address"):
+    invalid_values = {
+        "",
+        "not found",
+        "none",
+        "null",
+    }
+
+    normalized_address = str(address or "").strip().lower()
+
+    # Use the seed if the scraped address is missing or explicitly invalid.
+    if normalized_address in invalid_values and seed.get("address"):
         log_seed_fallback(entity_name, "address")
         sources.add("seed")
         return seed["address"]
+
     return address
+
+
 
 
 def apply_seed_to_employees(entity_name: str, seed: dict, employees, sources: set):
