@@ -2,6 +2,7 @@ import json
 import re
 from urllib.parse import urlparse, urljoin
 
+from altair import value
 from bs4 import BeautifulSoup
 
 from search_resolver import fetch_html
@@ -48,10 +49,35 @@ def address_from_html(html):
             if isinstance(node, dict):
                 addr = node.get("address")
                 if isinstance(addr, dict):
-                    parts = [addr.get(k) for k in ("streetAddress", "addressLocality", "addressRegion",
-                                                    "postalCode", "addressCountry")]
-                    parts = [p if isinstance(p, str) else (p or {}).get("name", "") for p in parts]
+                    parts = [ 
+                        addr.get(k) 
+                        for k in ( 
+                            "streetAddress", 
+                            "addressLocality", 
+                            "addressRegion", 
+                            "postalCode", 
+                            "addressCountry", ) ]
+
+                    def extract_text(value):
+                        if isinstance(value, str):
+                            return value.strip()
+
+
+                    if isinstance(value, dict):
+                        return extract_text(value.get("name", ""))
+
+                    if isinstance(value, list):
+                        return ", ".join(
+                            text for item in value
+                            if (text := extract_text(item))
+                        )
+
+                    return ""
+
+
+                    parts = [extract_text(p) for p in parts]
                     txt = ", ".join(p for p in parts if p)
+
                     if len(txt) > 8:
                         return txt
                 stack.extend(v for v in node.values() if isinstance(v, (dict, list)))
@@ -68,10 +94,57 @@ def address_from_html(html):
     m = re.search(r"〒\s?\d{3}-?\d{4}[ \u3000]*[^\n]{4,90}", text)
     if m:
         return m.group(0).strip()
+
     # 4) English label
-    m = re.search(r"(?:Head\s*Office|Headquarters|Address|Location|所在地|本社)\s*[:：]?\s*\n?\s*([^\n]{12,140})", text, re.I)
+    m = re.search(
+        r"(?:Head\s*Office|Headquarters|Address|Location|所在地|本社)"
+        r"\s*[:：]?\s*\n?\s*([^\n]{12,140})",
+        text,
+        re.I,
+    )
+
+
     if m:
-        return m.group(1).strip()
+        candidate = re.sub(r"\s+", " ", m.group(1)).strip()
+        candidate_lower = candidate.lower()
+
+        invalid_phrases = (
+            "find doctor",
+            "by disease",
+            "customer review",
+            "made my work easy",
+            "patient needs",
+            "financial needs",
+            "business travel",
+            "complete platform",
+            "read more",
+            "learn more",
+            "delivery charge",
+            "sim card",
+            "cardholder",
+            "vendor to ship",
+            "correction online",
+        )
+
+        if any(phrase in candidate_lower for phrase in invalid_phrases):
+            return None
+
+        # A plausible address should contain location indicators,
+        # not just an arbitrary number.
+        location_pattern = (
+            r"\b(street|road|rd|marg|nagar|phase|park|house|"
+            r"building|floor|india|pune|mumbai|delhi|kerala|"
+            r"chennai|hyderabad|maharashtra|prabhadevi)\b"
+        )
+
+        has_location_word = bool(
+            re.search(location_pattern, candidate, re.I)
+        )
+        has_digit = bool(re.search(r"\d", candidate))
+
+        if has_location_word and has_digit:
+            return candidate
+
     return None
 
 

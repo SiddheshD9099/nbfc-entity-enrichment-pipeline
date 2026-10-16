@@ -7,6 +7,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 TABLE_NAME = "entity_enrichment"
 
@@ -114,17 +115,108 @@ def _row_to_values(row: dict[str, Any]) -> tuple:
     )
 
 
-def upsert_rows(rows: list[dict], database_url: str | None = None, sqlite_path: str | Path | None = None) -> None:
+def upsert_rows(
+    rows: list[dict],
+    database_url: str | None = None,
+    sqlite_path: str | Path | None = None,
+) -> None:
+    """Insert new entities or update existing entities by normalized name."""
     if not rows:
         return
-    conn = get_connection(database_url=database_url, sqlite_path=sqlite_path)
-    placeholders = ", ".join("?" if isinstance(conn, sqlite3.Connection) else "%s" for _ in COLUMNS)
+
+    conn = get_connection(
+        database_url=database_url,
+        sqlite_path=sqlite_path,
+    )
+
+    is_sqlite = isinstance(conn, sqlite3.Connection)
+
+    if is_sqlite:
+        conn.execute(
+            f"""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_{TABLE_NAME}_entity_name
+            ON {TABLE_NAME}(LOWER(TRIM(entity_name)))
+            """
+        )
+        placeholders = ", ".join("?" for _ in COLUMNS)
+        conflict_sql = """
+            ON CONFLICT(entity_name) DO UPDATE SET
+        """
+        # SQLite's expression index requires a matching conflict target.
+        conflict_sql = """
+            ON CONFLICT DO UPDATE SET
+        """
+    else:
+        placeholders = ", ".join("%s" for _ in COLUMNS)
+        conflict_sql = """
+            ON CONFLICT (entity_name) DO UPDATE SET
+        """
+
     col_list = ", ".join(COLUMNS)
-    sql = f"INSERT INTO {TABLE_NAME} ({col_list}) VALUES ({placeholders})"
+    updates = ", ".join(
+        f"{column} = EXCLUDED.{column}"
+        for column in COLUMNS
+        if column != "entity_name"
+    )
+
+    sql = (
+        f"INSERT INTO {TABLE_NAME} ({col_list}) "
+        f"VALUES ({placeholders}) "
+        f"{conflict_sql} {updates}"
+    )
+
     try:
         cur = conn.cursor()
         for row in rows:
-            cur.execute(sql, _row_to_values(row))
+            values = _row_to_values(row)
+            cur.execute(sql, values)
+
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
+
+def get_cached_entity(
+    entity_name: str,
+    database_url: str | None = None,
+    sqlite_path: str | Path | None = None,
+) -> dict[str, Any] | None:
+    """Return the latest stored record for an entity, if available."""
+    conn = get_connection(
+        database_url=database_url,
+        sqlite_path=sqlite_path,
+    )
+
+    try:
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        cur.execute(
+            f"""
+            SELECT
+                entity_name,
+                entity_type,
+                company_website,
+                company_linkedin,
+                company_address,
+                employee_size,
+                contacts,
+                source,
+                validation_status,
+                enriched_at
+            FROM {TABLE_NAME}
+            WHERE LOWER(TRIM(entity_name)) = LOWER(TRIM(?))
+            ORDER BY enriched_at DESC
+            LIMIT 1
+            """,
+            (entity_name,),
+        )
+
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+    finally:
+        conn.close()
+
